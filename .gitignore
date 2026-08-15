@@ -1,0 +1,31 @@
+# Java compiled files
+*.class
+
+# Java/Maven/Gradle build output
+target/
+build/
+out/
+
+# Properties/secrets
+*.properties
+
+# IntelliJ
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# Eclipse
+.classpath
+.project
+.settings/
+.factorypath
+.apt_generated/
+.springBeans
+.sts4-cache/
+
+# VS Code
+.vscode/
+
+# OS
+.DS_Store
