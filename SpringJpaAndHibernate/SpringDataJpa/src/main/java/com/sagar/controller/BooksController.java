@@ -2,6 +2,7 @@ package com.sagar.controller;
 
 import com.sagar.entity.Books;
 import com.sagar.service.BooksService;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.web.bind.annotation.*;
@@ -17,7 +18,8 @@ public class BooksController {
 
 
     @PostMapping
-    public String saveBook(@RequestBody Books book){
+    public String saveBook(@Valid @RequestBody Books book){
+        System.out.println(book.getBookName());
         service.saveBook(book);
         return "Book saved";
 

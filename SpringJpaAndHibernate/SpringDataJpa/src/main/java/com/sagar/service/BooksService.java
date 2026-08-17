@@ -36,7 +36,7 @@ public class BooksService {
 
     @Transactional
     public List<Books> getBooksSorted(){
-         Sort sort=Sort.by("book_name").descending();
+         Sort sort=Sort.by("bookName").descending();
         return repo.findAll(sort);
 
     }
