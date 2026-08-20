@@ -1,3 +1,17 @@
+## 📚 Topic Reference
+
+This README is the **main mental model for JPA + Hibernate + Transactions** and how the complete persistence flow fits together.
+
+For deeper topic-specific details, refer to:
+
+- **JpaRelations/** → Detailed JPA entity relationships and association handling.
+- **OrmMapping/** → Detailed ORM mapping concepts and Java object ↔ relational database mapping.
+- **Hibernate/** → Hibernate-specific APIs, internals, features, and implementation details.
+- **SpringDataJpa/** → Spring Data JPA-specific abstractions, features, and implementation.
+
+> **Main README = complete mental model & how everything connects.  
+> Individual folders = detailed deep dives into each specific layer.**
+
 
 # 🧠 Spring Data JPA + Hibernate + `@Transactional`
 
@@ -3152,9 +3166,736 @@ This is the diagram to keep as your master reference:
                                   🌐 CLIENT
 ```
 
+
 ---
 
-# 🎯 36. The "Who Manages What?" Cheat Sheet
+# 🧠 Advanced: Extended Persistence Context & Second-Level Cache
+
+The normal Spring JPA mental model used throughout this README is:
+
+```text
+Transaction T1
+    ↓
+EntityManager / Persistence Context
+    ↓
+L1 Cache
+
+Transaction T2
+    ↓
+EntityManager / Persistence Context
+    ↓
+L1 Cache
+```
+
+This is the **normal transaction-scoped setup** and should remain the default mental model.
+
+However, JPA/Hibernate also support concepts that go beyond this simple model:
+
+1. **Extended Persistence Context**
+2. **Second-Level Cache**
+
+These solve completely different problems.
+
+---
+
+# 36. Extended Persistence Context
+
+## 36.1 Normal Transaction-Scoped Persistence Context
+
+Normally, the persistence context is associated with the transaction.
+
+Conceptually:
+
+```text
+Transaction T1
+      ↓
+Persistence Context PC1
+      ↓
+L1 Cache
+
+Transaction T2
+      ↓
+Persistence Context PC2
+      ↓
+L1 Cache
+```
+
+Therefore:
+
+```text
+T1 → PC1 → L1-A
+T2 → PC2 → L1-B
+```
+
+When the persistence context ends, its first-level cache goes with it.
+
+This is the model normally used by Spring Boot applications.
+
+---
+
+# 36.2 Extended Persistence Context
+
+JPA also allows an **extended persistence context**.
+
+Here, the persistence context can survive across multiple transactions.
+
+Conceptually:
+
+```text
+              Extended Persistence Context
+                         │
+                         ▼
+                       L1 Cache
+                    /      |      \
+                   ↓       ↓       ↓
+                  T1      T2      T3
+```
+
+Notice the important distinction:
+
+```text
+Transactions
+    = database transaction boundaries
+
+Persistence Context
+    = lifecycle of managed entities
+```
+
+They are normally closely associated in Spring's transaction-scoped setup, but they are conceptually separate.
+
+With an extended persistence context:
+
+```text
+T1 ≠ T2 ≠ T3
+
+but:
+
+PC1 = same persistence context
+```
+
+Therefore the same persistence context and its managed entities can participate in multiple transactions.
+
+---
+
+# 36.3 Why Would We Use an Extended Persistence Context?
+
+The classic use case is a **long-running business conversation/workflow**.
+
+For example:
+
+```text
+User starts creating order
+        ↓
+Transaction 1
+        ↓
+Order becomes managed
+        ↓
+User adds more information
+        ↓
+Transaction 2
+        ↓
+Same persistence context
+        ↓
+User confirms order
+        ↓
+Transaction 3
+```
+
+Conceptually:
+
+```text
+                    Order
+                      │
+                      ▼
+             Extended Persistence Context
+                      │
+              ┌───────┼───────┐
+              ↓       ↓       ↓
+             T1      T2      T3
+```
+
+The benefit is that Hibernate can continue managing the same entity graph across those transactions.
+
+---
+
+# 36.4 Why Is This Not the Normal REST API Model?
+
+Most Spring Boot REST applications naturally follow:
+
+```text
+HTTP Request
+     ↓
+@Transactional
+     ↓
+Persistence Context
+     ↓
+Database work
+     ↓
+Commit / Rollback
+     ↓
+Request completes
+```
+
+A long-lived persistence context is usually unnecessary and introduces additional concerns:
+
+```text
+Long-lived managed entities
+        ↓
+Potential stale state
+        ↓
+More memory
+        ↓
+More complicated lifecycle
+        ↓
+More complicated concurrency
+```
+
+Therefore:
+
+> **For normal Spring Boot REST applications, keep the transaction-scoped persistence context as the default mental model.**
+
+Extended persistence contexts are specialized tools for long-running stateful business workflows.
+
+---
+
+# 37. Second-Level Cache
+
+The first-level cache is associated with one persistence context:
+
+```text
+EntityManager
+      ↓
+Persistence Context
+      ↓
+L1 Cache
+```
+
+Therefore:
+
+```text
+Transaction T1
+      ↓
+PC1
+      ↓
+L1-A
+```
+
+and:
+
+```text
+Transaction T2
+      ↓
+PC2
+      ↓
+L1-B
+```
+
+`L1-A` and `L1-B` are separate.
+
+---
+
+# 37.1 Why Do We Need a Second-Level Cache?
+
+Suppose the application repeatedly reads the same relatively stable entity.
+
+Without second-level caching:
+
+```text
+Request 1
+   ↓
+EntityManager 1
+   ↓
+L1 miss
+   ↓
+Database
+```
+
+Later:
+
+```text
+Request 2
+   ↓
+EntityManager 2
+   ↓
+L1 miss
+   ↓
+Database
+```
+
+Even though EntityManager 1 already loaded the entity, EntityManager 2 has a different persistence context.
+
+Second-level caching introduces another cache layer:
+
+```text
+EntityManager A
+      ↓
+L1-A
+      ↓ miss
+L2 Cache
+      ↓ miss
+Database
+
+
+EntityManager B
+      ↓
+L1-B
+      ↓ miss
+L2 Cache
+      ↓ HIT
+Entity data
+```
+
+So the second request can avoid another database query.
+
+---
+
+# 37.2 The Complete Cache Model
+
+```text
+                 EntityManager
+                       │
+                       ▼
+                First-Level Cache
+                  / Persistence
+                    Context
+                       │
+                    miss ↓
+                       │
+                       ▼
+                Second-Level Cache
+                       │
+                    miss ↓
+                       │
+                       ▼
+                   Database
+```
+
+The mental model is:
+
+```text
+L1:
+"My current persistence context already has this entity."
+
+L2:
+"Hibernate has this entity cached outside my current persistence context."
+```
+
+---
+
+# 37.3 How Do We Enable It?
+
+Second-level caching is **optional**.
+
+You configure Hibernate's second-level cache infrastructure and mark/configure entities that are eligible for caching.
+
+For example, conceptually:
+
+```java
+@Entity
+@Cacheable
+public class Country {
+
+    @Id
+    private Long id;
+
+    private String name;
+}
+```
+
+The important idea is:
+
+```text
+@Cacheable
+      ↓
+This entity is eligible for shared caching
+```
+
+But the annotation alone is not the entire setup.
+
+Hibernate also needs an appropriate cache implementation/provider and configuration.
+
+So:
+
+```text
+JPA
+ ↓
+@Cacheable
+ ↓
+Hibernate
+ ↓
+Cache infrastructure/provider
+ ↓
+Second-Level Cache
+```
+
+---
+
+# 37.4 What Kind of Data Should Be Cached?
+
+Good candidates are generally:
+
+```text
+Frequently read
++
+Rarely changed
+```
+
+For example:
+
+```text
+Country
+Currency
+Category
+Role
+Permission
+Static configuration
+Product metadata
+```
+
+Example:
+
+```text
+Country
+India
+USA
+UK
+Germany
+...
+```
+
+If thousands of requests repeatedly read the same country information and it rarely changes, L2 caching can prevent unnecessary database queries.
+
+---
+
+# 37.5 What Should Usually NOT Be Cached Blindly?
+
+Be careful with highly mutable or highly consistency-sensitive data:
+
+```text
+Payment
+Bank balance
+Inventory quantity
+Frequently changing order state
+Highly dynamic data
+```
+
+Caching introduces another copy of data.
+
+Therefore:
+
+```text
+No cache
+    ↓
+Database is the main source read by Hibernate
+
+L2 cache
+    ↓
+Hibernate may satisfy reads without going to DB
+```
+
+That additional state must be managed correctly.
+
+---
+
+# 38. L2 Cache and Multiple Application Instances
+
+This is where distributed applications become interesting.
+
+Imagine:
+
+```text
+                  Load Balancer
+                 /      |      \
+                ↓       ↓       ↓
+              App 1   App 2   App 3
+```
+
+If each application instance has an independent local cache:
+
+```text
+App 1 → L2-A
+App 2 → L2-B
+App 3 → L2-C
+```
+
+then stale data can potentially exist.
+
+For example:
+
+```text
+L2-A: Product#1 = ₹100
+L2-B: Product#1 = ₹100
+L2-C: Product#1 = ₹100
+```
+
+App 1 updates:
+
+```text
+Product#1 = ₹120
+```
+
+Database:
+
+```text
+₹120
+```
+
+But App 2's local cache could still contain:
+
+```text
+₹100
+```
+
+Therefore:
+
+> **Second-level caching is not something to enable blindly in a multi-instance application.**
+
+The cache topology, invalidation/coordination mechanism, concurrency strategy, and data mutability all matter.
+
+---
+
+# 39. Distributed / Shared Second-Level Cache
+
+A shared or coordinated cache can instead look like:
+
+```text
+              Load Balancer
+             /      |      \
+            ↓       ↓       ↓
+          App 1   App 2   App 3
+             \       |       /
+              \      |      /
+               ▼     ▼     ▼
+             Shared /
+          Distributed Cache
+                    ↓
+                 Database
+```
+
+Now the application instances can coordinate around shared cached state.
+
+The exact cache provider and clustering configuration are Hibernate/environment-specific.
+
+---
+
+# 40. Second-Level Cache vs Redis
+
+Do not think:
+
+```text
+Second-Level Cache = Redis
+```
+
+They are different concepts.
+
+## Hibernate Second-Level Cache
+
+```text
+Application
+    ↓
+JPA EntityManager
+    ↓
+Hibernate
+    ↓
+L1 Cache
+    ↓
+L2 Cache
+    ↓
+Database
+```
+
+Hibernate understands that the cached data represents ORM-managed entity state.
+
+You generally don't write:
+
+```text
+cache.get("country:1")
+```
+
+for normal L2 entity retrieval.
+
+Hibernate handles the cache interaction.
+
+---
+
+## Redis
+
+Redis is a general-purpose data store/cache:
+
+```text
+Application
+    ↓
+Redis
+    ↓
+Database
+```
+
+Your application can decide what to store:
+
+```text
+product:123
+top-events
+user-session:123
+rate-limit:user:123
+expensive-query-result
+```
+
+Redis doesn't inherently understand:
+
+```text
+@Entity
+EntityManager
+Persistence Context
+```
+
+unless your application/framework integrates those concepts with Redis.
+
+---
+
+# 40.1 Mental Model
+
+Remember:
+
+```text
+L1 Cache
+= current Persistence Context already has the entity
+
+L2 Cache
+= Hibernate has reusable entity state beyond the current
+  Persistence Context
+
+Redis
+= application-level/general-purpose external cache
+```
+
+Therefore L2 and Redis can even coexist:
+
+```text
+Application
+    │
+    ├───────────────┐
+    ↓               ↓
+Hibernate          Redis
+    ↓
+L1
+    ↓
+L2
+    ↓
+Database
+```
+
+They solve different caching problems.
+
+---
+
+# 41. L1 vs L2 vs Redis — Final Mental Model
+
+| Feature                       | L1 Cache                                    | L2 Cache                         | Redis                           |
+| ----------------------------- | ------------------------------------------- | -------------------------------- | ------------------------------- |
+| Managed by                    | Persistence Context / Hibernate             | Hibernate + cache infrastructure | Application / Redis integration |
+| Scope                         | One Persistence Context                     | Beyond one Persistence Context   | Application-wide/external       |
+| ORM-aware                     | Yes                                         | Yes                              | No                              |
+| Always present?               | Yes                                         | Optional                         | Optional                        |
+| Avoids DB calls?              | Yes                                         | Yes                              | Yes                             |
+| Shared across EntityManagers? | No                                          | Yes, depending on cache topology | Yes                             |
+| Arbitrary application data?   | No                                          | Primarily ORM-managed data       | Yes                             |
+| Main purpose                  | Entity identity + repeated access within PC | Reuse entity state across PCs    | General application caching     |
+
+---
+
+# 42. The Final Mental Model
+
+The normal Spring Boot application:
+
+```text
+HTTP Request
+      ↓
+@Transactional
+      ↓
+Transaction
+      ↓
+EntityManager
+      ↓
+Persistence Context
+      ↓
+L1 Cache
+      ↓
+    miss
+      ↓
+Hibernate
+      ↓
+Database
+```
+
+With optional second-level caching:
+
+```text
+HTTP Request
+      ↓
+@Transactional
+      ↓
+Transaction
+      ↓
+EntityManager
+      ↓
+Persistence Context
+      ↓
+L1 Cache
+      ↓
+    miss
+      ↓
+L2 Cache
+      ↓
+    miss
+      ↓
+Hibernate / JDBC
+      ↓
+Database
+```
+
+With an extended persistence context:
+
+```text
+              Extended Persistence Context
+                         │
+                         ▼
+                       L1
+                    /   |   \
+                   ↓    ↓    ↓
+                  T1   T2   T3
+```
+
+These are **two separate advanced concepts**:
+
+```text
+Extended Persistence Context
+    ↓
+Changes the LIFETIME/SCOPE of the persistence context.
+
+Second-Level Cache
+    ↓
+Adds a CACHE layer shared beyond one persistence context.
+```
+
+Neither changes the fundamental ORM model:
+
+```text
+EntityManager
+      ↓
+Persistence Context
+      ↓
+Hibernate
+      ↓
+JDBC
+      ↓
+Database
+```
+
+They simply extend the model for specialized use cases.
+
+---
+
+# 🎯 43. The "Who Manages What?" Cheat Sheet
 
 | Component                             | Main responsibility                                             |
 | ------------------------------------- | --------------------------------------------------------------- |
@@ -3180,7 +3921,7 @@ This is the diagram to keep as your master reference:
 
 ---
 
-# 🧭 37. The Mental Model You Should Now Carry
+# 🧭 44. The Mental Model You Should Now Carry
 
 Don't memorize Hibernate as:
 
@@ -3237,140 +3978,7 @@ But remember that **transactions cut across these layers**:
  Persistence Context          Connection
 ```
 
----
 
-# 🚀 38. What We Deep-Dive Next
-
-Now that the map is solid, go **one box at a time**.
-
-### Phase 1 — Entity Lifecycle
-
-```text
-Transient
-Managed
-Detached
-Removed
-persist()
-find()
-merge()
-remove()
-detach()
-clear()
-```
-
-### Phase 2 — Persistence Context Internals
-
-```text
-Entity identity
-First-level cache
-Entity map
-Snapshots
-Managed state
-Context lifetime
-```
-
-### Phase 3 — Dirty Checking + Flush
-
-```text
-Snapshots
- ↓
-Dirty checking
- ↓
-Flush
- ↓
-SQL generation
- ↓
-Flush modes
- ↓
-Query-triggered auto-flush
-```
-
-### Phase 4 — Hibernate Internals
-
-```text
-EntityManager
- ↓
-Hibernate Session
- ↓
-SessionImpl
- ↓
-Persistence Context
- ↓
-Action Queue
- ↓
-Flush
- ↓
-SQL generation
-```
-
-### Phase 5 — Transactions
-
-```text
-@Transactional
- ↓
-Proxy
- ↓
-TransactionInterceptor
- ↓
-PlatformTransactionManager
- ↓
-JpaTransactionManager
- ↓
-TransactionSynchronizationManager
- ↓
-EntityManager / JDBC resources
- ↓
-Commit / Rollback
-```
-
-### Phase 6 — Querying
-
-```text
-JPQL
-HQL
-Native SQL
-Parameters
-Query execution
-Persistence Context interaction
-Auto-flush before queries
-```
-
-### Phase 7 — Relationships
-
-```text
-@OneToOne
-@OneToMany
-@ManyToOne
-@ManyToMany
-@JoinColumn
-mappedBy
-Cascade
-Orphan removal
-```
-
-### Phase 8 — Performance
-
-```text
-Lazy loading
-N+1
-Fetch Join
-Entity Graph
-Batch fetching
-L1 Cache
-L2 Cache
-```
-
-### Phase 9 — Concurrency
-
-```text
-Optimistic locking
-@Version
-Pessimistic locking
-Isolation
-Lost updates
-```
-
----
 
 # 🏁 The One Mental Picture
 
@@ -3462,3 +4070,5 @@ logical unit of database work
 ```
 
 **That is the foundation.** From here, every Hibernate feature we learn should attach to one of these boxes rather than becoming another random piece of magic.
+
+
