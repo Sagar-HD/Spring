@@ -2342,53 +2342,6 @@ Controller 403
 
 ------------------------------------------------------------------------
 
-# 60. 🧪 Practice Path
-
-Don't just read this.
-
-Build the concepts in increasing complexity:
-
-``` text
-1. Spring Security without Boot
-        ↓
-2. Form Login
-        ↓
-3. In-memory users
-        ↓
-4. Custom UserDetails
-        ↓
-5. UserDetailsService + DB
-        ↓
-6. PasswordEncoder
-        ↓
-7. DaoAuthenticationProvider
-        ↓
-8. Custom AuthenticationProvider
-        ↓
-9. Request authorization
-        ↓
-10. Method authorization
-        ↓
-11. CSRF + CORS
-        ↓
-12. Session management
-        ↓
-13. Logout
-        ↓
-14. JWT
-        ↓
-15. Refresh tokens
-        ↓
-16. OAuth2 Resource Server
-        ↓
-17. OAuth2 Authorization Server concepts
-        ↓
-18. OpenID Connect
-        ↓
-19. Microservice security
-```
-
-------------------------------------------------------------------------
 
 # 🧠 The Core Question To Ask While Learning
 
@@ -2427,73 +2380,236 @@ Spring Security rather than merely knowing how to configure it.
 
 ------------------------------------------------------------------------
 
-# 🚀 Current Progress
+# 🧩 Spring Security — Authentication & Customization Summary
 
-### ✅ Understood
+At this point, the important understanding is:
 
--   [x] Security fundamentals
--   [x] Assets / threats / vulnerabilities
--   [x] Trust boundaries
--   [x] Identity / credentials / claims
--   [x] Authentication
--   [x] Authentication factors
--   [x] MFA
--   [x] Authorization
--   [x] Principal
--   [x] Authorities
--   [x] Roles
--   [x] Rate limiting concept
--   [x] Stateful authentication
--   [x] Stateless authentication
--   [x] Authentication revocation trade-offs
--   [x] Self-contained tokens
--   [x] Opaque tokens
--   [x] Bearer tokens
--   [x] Authentication interface
--   [x] Authentication request vs authenticated result
--   [x] SecurityContext
--   [x] SecurityContextHolder
--   [x] ThreadLocal mental model
--   [x] Spring Security filter architecture
--   [x] DelegatingFilterProxy
--   [x] FilterChainProxy
--   [x] SecurityFilterChain
--   [x] HttpSecurity builder
--   [x] Authentication filters
--   [x] Form login
--   [x] HTTP Basic
--   [x] AuthenticationManager
--   [x] ProviderManager
--   [x] AuthenticationProvider
--   [x] `supports()`
--   [x] DaoAuthenticationProvider
--   [x] UserDetails
--   [x] Custom UserDetails
--   [x] UserDetailsService
--   [x] PasswordEncoder
--   [x] Authentication failure flow
--   [x] 401 vs 403
--   [x] Basic CSRF concept
--   [x] Basic CORS concept
--   [x] Spring Boot auto-configuration mental model
+> **Spring Security provides the security infrastructure. We configure it and extend specific extension points when our application's requirements need custom behavior.**
 
-### 🔜 Next Deep Dive
+The same core model remains:
 
--   [ ] Trace `UsernamePasswordAuthenticationFilter` internally
--   [ ] Trace `ProviderManager` source flow
--   [ ] Trace `DaoAuthenticationProvider`
--   [ ] Trace `UserDetailsService`
--   [ ] Trace `SecurityContext` lifecycle
--   [ ] Trace authorization internally
--   [ ] Deep CSRF
--   [ ] Deep CORS
--   [ ] Sessions and SecurityContext persistence
--   [ ] JWT from first principles
--   [ ] JWT implementation
--   [ ] Refresh tokens
--   [ ] OAuth2
--   [ ] OpenID Connect
--   [ ] Microservice authentication/authorization
+```text
+Authentication Mechanism
+        ↓
+Authentication
+        ↓
+SecurityContext
+        ↓
+Authorization
+```
+
+We have seen this through three different authentication approaches.
+
+---
+
+## 👤 Username/Password — Custom `UserDetailsService`
+
+For normal login, Spring Security already provides the authentication infrastructure.
+
+We customize:
+
+```text
+UserDetailsService
+```
+
+to tell Spring:
+
+> "When you need a user, load my user from my database."
+
+Our responsibility:
+
+```text
+UserDetailsService
+      ↓
+Repository
+      ↓
+Database
+      ↓
+UserDetails
+```
+
+Spring Security handles the rest:
+
+```text
+Authentication Filter
+        ↓
+AuthenticationManager
+        ↓
+DaoAuthenticationProvider
+        ↓
+UserDetailsService       ← OUR CUSTOMIZATION
+        ↓
+PasswordEncoder
+        ↓
+Authentication
+        ↓
+SecurityContext
+```
+
+### Mental model
+
+> **We provide the user-loading logic; Spring performs the authentication process.**
+
+---
+
+## 🔐 JWT — Custom JWT Filter
+
+With JWT, Spring Security still provides the security infrastructure, but we need to tell it how our application's JWT should be processed.
+
+We customize:
+
+```text
+OncePerRequestFilter
+```
+
+Our JWT filter:
+
+```text
+Request
+  ↓
+Extract Bearer Token
+  ↓
+Validate JWT
+  ↓
+Extract user information
+  ↓
+Create Authentication
+  ↓
+SecurityContext
+```
+
+We then register our filter in the security chain:
+
+```java
+http.addFilterBefore(
+    jwtAuthenticationFilter,
+    UsernamePasswordAuthenticationFilter.class
+);
+```
+
+Spring Security handles the rest of the authorization/security infrastructure.
+
+### Mental model
+
+> **We provide the JWT → Authentication conversion logic; Spring Security provides the surrounding security pipeline.**
+
+---
+
+## 🌐 OAuth2 / OIDC — Custom `OidcUserService`
+
+For OAuth2/OIDC, we don't implement OAuth2 ourselves.
+
+We configure:
+
+```text
+Client ID
+Client Secret
+Scopes
+oauth2Login()
+```
+
+Spring Security handles:
+
+```text
+Redirect
+Authorization Code
+Token exchange
+OIDC processing
+ID Token
+OidcUser
+Authentication
+SecurityContext
+```
+
+Our customization was only:
+
+```text
+OidcUserService
+```
+
+We extend it to save our application's user.
+
+Conceptually:
+
+```text
+Google
+  ↓
+Spring Security OAuth2/OIDC
+  ↓
+OidcUser
+  ↓
+CustomOidcUserService       ← OUR CUSTOMIZATION
+  ↓
+registerOrUpdate()
+  ↓
+Our Database
+```
+
+We delegate the actual OIDC work back to Spring:
+
+```java
+OidcUser oidcUser =
+    oidcUserService.loadUser(userRequest);
+```
+
+Then our application-specific logic:
+
+```text
+provider
+providerSubject
+email
+name
+   ↓
+find existing user
+   ↓
+update OR create
+```
+
+Finally:
+
+```java
+return oidcUser;
+```
+
+so Spring Security continues the normal authentication flow.
+
+### Mental model
+
+> **Spring handles the entire OAuth2/OIDC protocol; we only customize what to do with the authenticated external user inside our application.**
+
+---
+
+# 🧠 The Pattern Behind All Three
+
+```text
+             Spring Security
+                    │
+          provides infrastructure
+                    │
+                    ▼
+          ┌───────────────────┐
+          │ Extension Point   │
+          └─────────┬─────────┘
+                    │
+             Our Custom Code
+                    │
+                    ▼
+          Application-specific
+              behavior
+```
+
+| Authentication    | What Spring provides                              | What we customized                         |
+| ----------------- | ------------------------------------------------- | ------------------------------------------ |
+| Username/Password | Authentication flow + `DaoAuthenticationProvider` | `UserDetailsService` → load DB user        |
+| JWT               | Security filter infrastructure + authorization    | JWT Filter → token → `Authentication`      |
+| OAuth2/OIDC       | Complete OAuth2/OIDC client flow                  | `OidcUserService` → save/update local user |
+
+### 🔥 Core takeaway
+
+> **Don't implement what Spring Security already provides. Understand the infrastructure, find the correct extension point, customize only the application-specific part, and let Spring Security continue handling the rest.**
+
+That is the difference between **knowing Spring Security configuration** and **understanding how to work with Spring Security as a framework**.
+
 
 ------------------------------------------------------------------------
 
