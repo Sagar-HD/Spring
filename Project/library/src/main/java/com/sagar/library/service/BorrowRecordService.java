@@ -1,5 +1,6 @@
 package com.sagar.library.service;
 
+import com.sagar.library.annotation.MeasureTime;
 import com.sagar.library.constant.BorrowStatus;
 import com.sagar.library.entity.Book;
 import com.sagar.library.entity.BorrowRecord;
@@ -34,6 +35,7 @@ public class BorrowRecordService {
     }
 
     @Transactional
+    @MeasureTime(threshold = 100)
     public void borrowBook(Long userId, Long bookId){
         User user=userRepository.findById(userId).orElseThrow(()->new UsernameNotFoundException("user not found"));
         Book book=bookRepository.findById(bookId).orElseThrow(()->new BookNotFoundException("book not found"));
