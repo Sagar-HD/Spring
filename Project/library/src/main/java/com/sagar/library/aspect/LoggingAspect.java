@@ -1,5 +1,6 @@
 package com.sagar.library.aspect;
 
+import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.JoinPoint;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.*;
@@ -11,6 +12,7 @@ import java.time.LocalDateTime;
 
 @Component
 @Aspect
+@Slf4j
 public class LoggingAspect {
 
 
@@ -56,7 +58,7 @@ public class LoggingAspect {
             long end=System.currentTimeMillis();
             long timeTaken=end-start;
             if(timeTaken>threshold){
-                System.out.println("Time taken exceeded warning :"+timeTaken);
+                log.warn("Time taken exceeded warning : {} by method {}",timeTaken,jp.getSignature().toShortString());
             }
             else{
                 System.out.println("Time taken "+timeTaken);

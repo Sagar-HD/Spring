@@ -5,13 +5,18 @@ import com.sagar.library.entity.Book;
 import com.sagar.library.exception.BookLoanNotClearedBeforeDeleteException;
 import com.sagar.library.exception.BookNotFoundException;
 import com.sagar.library.repository.BookRepository;
+import com.sagar.library.security.CustomUserDetails;
 import jakarta.transaction.Transactional;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
 @Service
+@Slf4j
 public class BookService {
     private BookRepository bookRepository;
 
@@ -26,6 +31,7 @@ public class BookService {
         newBook.setNoOfCopies(bookDto.getNoOfCopies());
         newBook.setAvailableCopies(bookDto.getNoOfCopies());
         bookRepository.save(newBook);
+        log.info("new book added with book id {}",newBook.getId());
         return bookDto;
 
     }
@@ -92,7 +98,7 @@ public class BookService {
 
 
 
-
+        log.info("book with book id : {} updated by user id : {} ",book.getId(),id);
         return BookDto.builder().name(book.getName()).authorName(book.getAuthorName()).id(book.getId()).availableCopies(book.getAvailableCopies()).noOfCopies(book.getNoOfCopies()).build();
     }
     @PreAuthorize("hasAnyRole('ADMIN','LIBRARIAN')")
@@ -104,6 +110,9 @@ public class BookService {
         else{
             throw new BookLoanNotClearedBeforeDeleteException("before deleting book make sure all lones are cleared");
         }
+        CustomUserDetails userDetails= (CustomUserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        log.info("book with id : {} deleted by user id : {} ",id,userDetails.getUserId());
+
          }
 
 

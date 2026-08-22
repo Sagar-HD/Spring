@@ -6,9 +6,11 @@ import com.sagar.library.entity.Role;
 import com.sagar.library.entity.User;
 import com.sagar.library.repository.RoleRepository;
 import com.sagar.library.repository.UserRepository;
+import com.sagar.library.security.CustomUserDetails;
 import com.sagar.library.util.JwtUtil;
 import io.jsonwebtoken.Jwt;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -16,6 +18,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 @Service
+@Slf4j
 public class AuthService {
     private final UserRepository userRepository;
     private PasswordEncoder passwordEncoder;
@@ -40,12 +43,15 @@ public class AuthService {
         Role role=roleRepository.findByName("USER").orElseThrow(()->new RuntimeException("role not found"));
         newUser.getRoles().add(role);
         userRepository.save(newUser);
+        log.info("User registered with user id : {}",newUser.getId());
 
     }
 
     public String loginUser(UserLoginRequestDto userLoginRequestDto){
       UsernamePasswordAuthenticationToken token= new UsernamePasswordAuthenticationToken(userLoginRequestDto.getName(),userLoginRequestDto.getPassword());
      Authentication authentication=authenticationManager.authenticate(token);
+     CustomUserDetails loggedInUser=(CustomUserDetails) authentication.getPrincipal();
+        log.info("User Logged in  : {}",loggedInUser.getUserId());
      return jwtUtil.generateToken(authentication);
     }
 

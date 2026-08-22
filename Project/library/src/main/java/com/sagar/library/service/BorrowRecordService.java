@@ -9,9 +9,12 @@ import com.sagar.library.exception.*;
 import com.sagar.library.repository.BookRepository;
 import com.sagar.library.repository.BorrowRecordRepository;
 import com.sagar.library.repository.UserRepository;
+import com.sagar.library.security.CustomUserDetails;
 import jakarta.transaction.Transactional;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Sort;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
@@ -23,6 +26,7 @@ import java.util.List;
 import java.util.Set;
 
 @Service
+@Slf4j
 public class BorrowRecordService {
     private UserRepository userRepository;
     private BorrowRecordRepository borrowRecordRepository;
@@ -35,7 +39,7 @@ public class BorrowRecordService {
     }
 
     @Transactional
-    @MeasureTime(threshold = 100)
+    @MeasureTime(threshold = 10)
     public void borrowBook(Long userId, Long bookId){
         User user=userRepository.findById(userId).orElseThrow(()->new UsernameNotFoundException("user not found"));
         Book book=bookRepository.findById(bookId).orElseThrow(()->new BookNotFoundException("book not found"));
@@ -52,6 +56,8 @@ public class BorrowRecordService {
                 .dueDate(LocalDate.now().plusWeeks(2L)).build();
 
         borrowRecordRepository.save(borrowRecord);
+        log.info("book id : {} borrowed by user id : {} ",bookId,userId);
+
 
 
     }
@@ -74,11 +80,14 @@ public class BorrowRecordService {
         borrowRecord.setBorrowStatus(BorrowStatus.BORROWED);
         borrowedBook.setAvailableCopies(borrowedBook.getAvailableCopies()-1);
         borrowRecord.setDueDate(borrowRecord.getBorrowedAt().plusWeeks(2L));
+        CustomUserDetails userDetails= (CustomUserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        log.info("borrow for borrow id : {} approved by librarian id : {}",borrowId,userDetails.getUserId());
 
 
     }
 
     @Transactional
+    @MeasureTime(threshold = 10)
     public void returnBook(Long borrowId,Long authenticatedUserId){
         BorrowRecord borrowRecord=borrowRecordRepository.findById(borrowId).orElseThrow(()->new IllegalArgumentException("invalid borrow id"));
         if(!authenticatedUserId.equals(borrowRecord.getBorrowedBy().getId()) ) throw new MaliciousAccessExcpetion("malicious access");
@@ -89,7 +98,9 @@ public class BorrowRecordService {
         bookToReturn.setAvailableCopies(bookToReturn.getAvailableCopies()+1);
 
     }
+
     @PreAuthorize("hasAnyRole('ADMIN','LIBRARIAN')")
+    @MeasureTime(threshold = 10)
     public List<BorrowRecord> getAllBorrowRecords(Boolean sortByDueDate,String status){
 
         if((sortByDueDate==null || !sortByDueDate) && status==null)   return borrowRecordRepository.findAll();
@@ -109,6 +120,7 @@ public class BorrowRecordService {
 
     }
 
+    @MeasureTime(threshold = 10)
     public List<BorrowRecord> getUserBorrowRecords(Long authenticatedUserId,Boolean sortByDueDate,String status){
         if((sortByDueDate==null || !sortByDueDate) && status==null)  return  borrowRecordRepository.getAllByBorrowedById(authenticatedUserId);
 

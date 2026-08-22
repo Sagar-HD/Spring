@@ -6,8 +6,11 @@ import com.sagar.library.entity.Role;
 import com.sagar.library.entity.User;
 import com.sagar.library.repository.RoleRepository;
 import com.sagar.library.repository.UserRepository;
+import com.sagar.library.security.CustomUserDetails;
 import jakarta.transaction.Transactional;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -16,6 +19,7 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 
 @Service
+@Slf4j
 public class UserService {
     private UserRepository userRepository;
     private RoleRepository roleRepository;
@@ -54,6 +58,9 @@ public class UserService {
         newLibrarian.getRoles().add(role);
         newLibrarian.setPassword(passwordEncoder.encode(userRegistrationRequestDto.getPassword()));
         userRepository.save(newLibrarian);
+        CustomUserDetails userDetails=(CustomUserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        log.info("librarian id : {} added by admin id : {}",newLibrarian.getId(),userDetails.getUserId());
+
         return UserResponseDto.builder().name(newLibrarian.getName()).id(newLibrarian.getId()).email(newLibrarian.getEmail()).build();
 
     }
