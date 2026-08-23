@@ -7,6 +7,7 @@ import com.sagar.library.entity.User;
 import com.sagar.library.repository.RoleRepository;
 import com.sagar.library.repository.UserRepository;
 import com.sagar.library.security.CustomUserDetails;
+import com.sagar.library.util.EmailUtil;
 import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -24,12 +25,14 @@ public class UserService {
     private UserRepository userRepository;
     private RoleRepository roleRepository;
     private PasswordEncoder passwordEncoder;
+    private EmailUtil emailUtil;
 
-    public UserService(UserRepository userRepository,RoleRepository roleRepository,PasswordEncoder passwordEncoder) {
+    public UserService(UserRepository userRepository,RoleRepository roleRepository,PasswordEncoder passwordEncoder,EmailUtil emailUtil) {
 
         this.userRepository = userRepository;
         this.roleRepository=roleRepository;
         this.passwordEncoder=passwordEncoder;
+        this.emailUtil=emailUtil;
     }
 
     public UserResponseDto getUser(UserDetails user){
@@ -60,6 +63,8 @@ public class UserService {
         userRepository.save(newLibrarian);
         CustomUserDetails userDetails=(CustomUserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         log.info("librarian id : {} added by admin id : {}",newLibrarian.getId(),userDetails.getUserId());
+
+        emailUtil.sendMail(newLibrarian.getEmail(),"Congratulations ! you were added as an librarian","You have been successfully registered to our library app as an Librarian you can Login with credentials ");
 
         return UserResponseDto.builder().name(newLibrarian.getName()).id(newLibrarian.getId()).email(newLibrarian.getEmail()).build();
 

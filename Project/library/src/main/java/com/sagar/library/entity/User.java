@@ -20,6 +20,7 @@ public class User {
     private long id;
 
     @NotBlank
+    @Column(unique = true ,nullable = false)
     private String name;
 
     @NotBlank
