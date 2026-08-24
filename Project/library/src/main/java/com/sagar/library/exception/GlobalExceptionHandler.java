@@ -8,6 +8,7 @@ import org.springframework.http.HttpRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authorization.AuthorizationDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -48,6 +49,15 @@ public class GlobalExceptionHandler {
         ErrorResponseDto errorResponseDto=new ErrorResponseDto();
         errorResponseDto.setPath(req.getRequestURI());
         errorResponseDto.setMessage(e.getMessage());
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponseDto);
+    }
+
+    @ExceptionHandler(BadCredentialsException.class)
+    public  ResponseEntity<ErrorResponseDto> badCredentialsHandler(Exception e, HttpServletRequest req){
+        ErrorResponseDto errorResponseDto=new ErrorResponseDto();
+        errorResponseDto.setPath(req.getRequestURI());
+        errorResponseDto.setMessage("username or password wrong");
 
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponseDto);
     }

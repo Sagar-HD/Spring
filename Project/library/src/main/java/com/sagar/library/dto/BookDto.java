@@ -1,5 +1,6 @@
 package com.sagar.library.dto;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.Column;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.validation.constraints.Min;
@@ -16,10 +17,12 @@ public class BookDto {
     private String name;
 
 
+    @Schema(name = "book author name")
     private String authorName;
 
     @Min(1)
     private Integer noOfCopies;
+
 
     private Integer availableCopies;
 

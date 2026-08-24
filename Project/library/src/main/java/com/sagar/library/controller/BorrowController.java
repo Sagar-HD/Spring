@@ -3,6 +3,7 @@ package com.sagar.library.controller;
 import com.sagar.library.entity.BorrowRecord;
 import com.sagar.library.security.CustomUserDetails;
 import com.sagar.library.service.BorrowRecordService;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.constraints.NotNull;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -13,6 +14,7 @@ import java.util.List;
 @RestController
 @RequestMapping("borrow")
 @Validated
+@Tag(name = "03 - Borrowing book")
 public class BorrowController {
     private BorrowRecordService borrowRecordService;
 

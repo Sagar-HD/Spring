@@ -3,6 +3,7 @@ package com.sagar.library.controller;
 import com.sagar.library.dto.BookDto;
 import com.sagar.library.repository.BookRepository;
 import com.sagar.library.service.BookService;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -10,6 +11,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("books")
+@Tag(name = "02 - Books Operations" ,description = "add new book, delete book and update book (ADMIN,LIBRARIAN) ,get book , get all book (authenticated user) ")
 public class BookController {
     private BookService bookService;
 
