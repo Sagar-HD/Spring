@@ -8,39 +8,46 @@ import {getUserData} from './service/UserService'
 import {getMyBorrowedBooks} from './service/BookServices'
 import { useEffect } from 'react'
 import BorrowedBooks from './pages/BorrowedBooks'
+import { useDispatch } from 'react-redux'
+import { selectBorrowedBooks,selectBorrowedBooksError,selectBorrowedBooksLoading } from './app/store/borrowedBookSlice'
+
 function App() {
  const auth = useSelector((state) => state.auth);
- const [userData, setUserData] = useState({});
- const [borrowedBooks, setBorrowedBooks] = useState([]);
+ const dispatch = useDispatch();
+ const borrowedBooks = useSelector(selectBorrowedBooks);
+ const borrowedBooksLoading = useSelector(selectBorrowedBooksLoading);
+ const borrowedBooksError = useSelector(selectBorrowedBooksError);
+
+
+
+ 
 
 
  useEffect(() => {
-    const fetchUserData = async () => {
-      try {
-        const response = await getUserData();
-        setUserData(response.data);
-        const borrowedBooksResponse = await getMyBorrowedBooks();
-        setBorrowedBooks(borrowedBooksResponse.data);
-      } catch (error) {
-        console.error("Error fetching user data:", error);
-      }
-    };
-    
-    fetchUserData();
-  
- }, [auth]);
+
+  dispatch({ type: 'api/makeRequest', payload: { url:"/borrow/my", onSuccess: 'borrows/onBorrowedBooksSuccess', onError: 'borrows/onBorrowedBooksFailure' } });
+   console.log("borrowedBooks",borrowedBooks);
+
+
+ },[]);
 
 
   return (
     <>
     <h1>app  hello 
-      {
-        userData && userData ? `Welcome, ${userData.name}! email : ${userData.email}`  : 'Loading user data...'
-      }
+      
 
 
     </h1>
-    <BorrowedBooks borrowedBooks={borrowedBooks} />
+   {
+    borrowedBooksLoading ? (
+      <p>Loading borrowed books...</p>
+    ) : borrowedBooksError ? (
+      <p>Error: {borrowedBooksError}</p>
+    ) : (
+      <BorrowedBooks borrowedBooks={borrowedBooks} />
+    )
+   }
     </>
   )
 }
