@@ -4,7 +4,7 @@ const apiMiddleware = (store) => (next) => (action) => {
     if (action.type === 'api/makeRequest') {
         const { url,onSuccess, onError } = action.payload;
         api.get(url).then((response) => {
-            console.log("apiMiddleware response",response.data);
+           
             store.dispatch({ type: onSuccess, payload: response.data });
         })
         .catch((error) => {

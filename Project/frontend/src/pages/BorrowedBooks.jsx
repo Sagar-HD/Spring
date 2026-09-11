@@ -1,36 +1,15 @@
-import React from 'react'
+import { useEffect, useState } from "react";
+import { useSelector } from "react-redux";
+import { selectUserData } from "../app/store/authSlice";
+import { approveBorrow, getBorrows, getMyBorrows, returnBook } from "../service/LibraryService";
 
-const BorrowedBooks = ({borrowedBooks}) => {
-  return (
-    <div>
-      <h2>Borrowed Books</h2>
-     
-        {borrowedBooks?.map((book) => (
-         <div key={book.borrowId}
-   className="bg-white border border-slate-200 shadow-sm w-full max-w-sm rounded-lg mx-auto mt-6 p-4 sm:p-6 dark:bg-neutral-800 dark:border-neutral-700">
-   <div>
-      <h3 className="text-slate-900 text-base font-semibold dark:text-slate-50">{book.borrowedBook.authorName}</h3>
-      <p className="mt-2 text-sm text-slate-600 leading-relaxed dark:text-slate-400">{book.borrowedBook.name}</p>
-   </div>
-  <div className="flex gap-4 mt-4">
-   <p href="#"
-      className="inline-block mt-6 py-2 px-3.5 text-sm rounded-md font-semibold cursor-pointer text-white border border-blue-600 bg-blue-600 hover:bg-blue-700 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
-    Due: {book.dueDate}
-    
-   </p>
-    <p href="#"
-      className="inline-block mt-6 py-2 px-3.5 text-sm rounded-md font-semibold cursor-pointer text-white border border-blue-600 bg-blue-600 hover:bg-blue-700 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
-     Borrowed at: {book.borrowedAt}
-    
-   </p>
-   </div>
-  
-
-</div>
-        ))}
-     
-    </div>
-  )
+export default function BorrowedBooks({ manage = false }) {
+  const user = useSelector(selectUserData);
+  const isLibrarian = user?.roles?.some((role) => /LIBRARIAN/i.test(role));
+  const isManager = manage || isLibrarian || user?.roles?.some((role) => /ADMIN/i.test(role));
+  const [records, setRecords] = useState([]); const [status, setStatus] = useState(""); const [loading, setLoading] = useState(true); const [error, setError] = useState("");
+  async function load() { setLoading(true); try { setRecords((await (isManager ? getBorrows({ status }) : getMyBorrows({ status }))).data || []); } catch (e) { setError(e.response?.data?.message || "Unable to load borrow records."); } finally { setLoading(false); } }
+  useEffect(() => { load(); }, [isManager, status]);
+  async function act(callback) { try { await callback(); await load(); } catch (e) { setError(e.response?.data?.message || "The action could not be completed."); } }
+  return <section className="mx-auto max-w-7xl space-y-6"><header><p className="text-sm font-semibold uppercase tracking-[0.2em] text-blue-600">Circulation</p><h1 className="mt-2 text-3xl font-bold">{isManager ? "Borrow requests" : "My borrowed books"}</h1><p className="mt-2 text-slate-500">{isManager ? "Review requests, approve loans, and monitor returns." : "Your current and past library activity."}</p></header>{error && <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}<select value={status} onChange={(e) => setStatus(e.target.value)} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"><option value="">All statuses</option><option value="REQUESTED">Requested</option><option value="BORROWED">Borrowed</option><option value="RETURNED">Returned</option><option value="OVERDUE">Overdue</option></select>{loading ? <p className="text-slate-500">Loading borrow records...</p> : records.length === 0 ? <div className="rounded-2xl border border-dashed border-slate-300 p-12 text-center text-slate-500">No borrow records found.</div> : <div className="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">{records.map((record) => { const book = record.borrowedBook || {}; const state = String(record.borrowStatus || "REQUESTED").toUpperCase(); const id = record.borrowId || record.id; const borrowerId = record.borrowedBy?.id ?? record.borrowedBy?.userId; const ownsRecord = !isManager || String(borrowerId) === String(user?.id); return <div key={id} className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between"><div><h2 className="font-bold">{book.name || book.title || "Book"}</h2><p className="text-sm text-slate-500">{book.authorName} · Borrowed {record.borrowedAt ? new Date(record.borrowedAt).toLocaleDateString() : "recently"}</p><span className="mt-2 inline-block rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold">{state}</span></div><div className="flex gap-2">{isLibrarian && state === "REQUESTED" && <button onClick={() => act(() => approveBorrow(id))} className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white">Approve</button>}{ownsRecord && state === "BORROWED" && <button onClick={() => act(() => returnBook(id))} className="rounded-lg border px-3 py-2 text-sm font-semibold">Return book</button>}</div></div>; })}</div>}</section>;
 }
-
-export default BorrowedBooks

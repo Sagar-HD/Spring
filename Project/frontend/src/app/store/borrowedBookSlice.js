@@ -14,9 +14,9 @@ const borrowSlice = createSlice({
         }
           ,
         onBorrowedBooksSuccess: (state, action) => {
-            console.log("onBorrowedBooksSuccess called");
+       
             state.loading = false;
-            console.log("action.payload",action.payload);
+           
             state.borrowedBooks = action.payload;
         },
         onBorrowedBooksFailure: (state, action) => {
