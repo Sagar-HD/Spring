@@ -10,6 +10,8 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
 import java.util.Collection;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 
 public class CustomUserDetails implements UserDetails {
@@ -39,4 +41,7 @@ public class CustomUserDetails implements UserDetails {
     public Long getUserId() {
         return targetUser.getId();
     }
+
+    public String getUserEmail(){return targetUser.getEmail();}
+    public Set<String> getRoles(){return targetUser.getRoles().stream().map((role)->role.getName()).collect(Collectors.toSet());}
 }

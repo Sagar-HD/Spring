@@ -2,7 +2,9 @@ package com.sagar.library.service;
 
 import com.sagar.library.annotation.MeasureTime;
 import com.sagar.library.dto.UserLoginRequestDto;
+import com.sagar.library.dto.UserLoginResponseDto;
 import com.sagar.library.dto.UserRegistrationRequestDto;
+import com.sagar.library.dto.UserResponseDto;
 import com.sagar.library.entity.Role;
 import com.sagar.library.entity.User;
 import com.sagar.library.repository.RoleRepository;
@@ -53,12 +55,12 @@ public class AuthService {
 
     }
 
-    public String loginUser(UserLoginRequestDto userLoginRequestDto){
+    public UserLoginResponseDto loginUser(UserLoginRequestDto userLoginRequestDto){
       UsernamePasswordAuthenticationToken token= new UsernamePasswordAuthenticationToken(userLoginRequestDto.getName(),userLoginRequestDto.getPassword());
      Authentication authentication=authenticationManager.authenticate(token);
      CustomUserDetails loggedInUser=(CustomUserDetails) authentication.getPrincipal();
         log.info("User Logged in  : {}",loggedInUser.getUserId());
-     return jwtUtil.generateToken(authentication);
+     return new UserLoginResponseDto(jwtUtil.generateToken(authentication),new UserResponseDto(loggedInUser.getUserId(), loggedInUser.getUsername(), loggedInUser.getUserEmail(),loggedInUser.getRoles()));
     }
 
 
